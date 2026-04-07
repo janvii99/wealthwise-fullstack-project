@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: wealthwise
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_NAME
+        value: WealthWise Admin
+      - key: ADMIN_EMAIL
+        value: admin@wealthwise.local
+      - key: ADMIN_PASSWORD
+        value: Admin@123
+      - key: JWT_SECRET
+        generateValue: true

@@ -1,0 +1,28 @@
+{
+  "name": "wealthwise",
+  "version": "1.0.0",
+  "description": "WealthWise full-stack personal finance manager with secure authentication and role-based access control.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/server.js --seed-only"
+  },
+  "keywords": [
+    "wealthwise",
+    "finance",
+    "express",
+    "sqlite",
+    "jwt",
+    "bcrypt"
+  ],
+  "author": "Janvi Pandya",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

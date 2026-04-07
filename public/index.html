@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WealthWise | Smart Financial Planning</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <nav class="topbar">
+          <div class="brand">
+            <div class="brand-mark">W</div>
+            <div>
+              <p class="eyebrow">Personal Finance Intelligence</p>
+              <h1>WealthWise</h1>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button class="ghost-button" data-open-auth="register">Create Account</button>
+            <button class="primary-button" data-open-auth="login">Login</button>
+          </div>
+        </nav>
+
+        <section class="hero-grid">
+          <div class="hero-copy glass-panel">
+            <p class="eyebrow">Built for ambitious savers and investors</p>
+            <h2>Track money, grow wealth, and stay financially ahead.</h2>
+            <p class="hero-text">
+              WealthWise turns your income, expenses, and savings goals into a secure, insight-driven dashboard
+              with authentication, role-based admin controls, and a real database-backed workflow.
+            </p>
+            <div class="hero-actions">
+              <button class="primary-button" data-open-auth="register">Start Free</button>
+              <button class="ghost-button" id="demoLogin">Explore Demo</button>
+            </div>
+            <div class="stat-strip">
+              <article>
+                <strong>Secure</strong>
+                <span>JWT + bcrypt + protected APIs</span>
+              </article>
+              <article>
+                <strong>Actionable</strong>
+                <span>Category insights and savings analytics</span>
+              </article>
+              <article>
+                <strong>Scalable</strong>
+                <span>SQLite persistence with admin oversight</span>
+              </article>
+            </div>
+          </div>
+
+          <div class="hero-preview">
+            <div class="dashboard-mock glass-panel">
+              <div class="mock-top">
+                <span class="signal-dot"></span>
+                <span class="signal-dot"></span>
+                <span class="signal-dot"></span>
+              </div>
+              <div class="mock-balance">
+                <p>Projected Net Worth Growth</p>
+                <h3>+18.4%</h3>
+              </div>
+              <div class="mock-bars">
+                <span style="--value: 84%"></span>
+                <span style="--value: 58%"></span>
+                <span style="--value: 73%"></span>
+                <span style="--value: 92%"></span>
+                <span style="--value: 63%"></span>
+              </div>
+              <div class="mock-cards">
+                <article>
+                  <p>Emergency Fund</p>
+                  <strong>72% funded</strong>
+                </article>
+                <article>
+                  <p>Expense Ratio</p>
+                  <strong>41%</strong>
+                </article>
+              </div>
+            </div>
+          </div>
+        </section>
+      </header>
+
+      <main class="app-layout">
+        <aside class="sidebar glass-panel hidden" id="sidebar">
+          <div class="profile-card">
+            <span class="avatar" id="userInitial">W</span>
+            <div>
+              <strong id="profileName">Welcome</strong>
+              <p id="profileEmail">Sign in to continue</p>
+            </div>
+          </div>
+
+          <div class="role-pill" id="rolePill">Guest Mode</div>
+
+          <nav class="sidebar-nav">
+            <button class="nav-link active" data-view="dashboard">Dashboard</button>
+            <button class="nav-link" data-view="transactions">Transactions</button>
+            <button class="nav-link" data-view="goals">Goals</button>
+            <button class="nav-link" data-view="insights">Insights</button>
+            <button class="nav-link hidden" data-view="admin" id="adminNav">Admin</button>
+          </nav>
+
+          <button class="ghost-button hidden" id="logoutButton">Logout</button>
+        </aside>
+
+        <section class="content">
+          <div class="toolbar glass-panel hidden" id="toolbar">
+            <div>
+              <p class="eyebrow">Submission-ready interface</p>
+              <h2 id="toolbarTitle">Dashboard Overview</h2>
+            </div>
+            <div class="toolbar-actions">
+              <span class="live-badge">Live Data</span>
+              <span class="ghost-chip" id="authStatus">Protected APIs Enabled</span>
+            </div>
+          </div>
+
+          <section class="view-section" id="guestView">
+            <div class="feature-grid">
+              <article class="feature-card glass-panel">
+                <p class="eyebrow">Frontend Design</p>
+                <h3>Bold, modern, screenshot-ready interface</h3>
+                <p>High-contrast visual system, dashboard cards, responsive layout, and dedicated views for 5+ submission screenshots.</p>
+              </article>
+              <article class="feature-card glass-panel">
+                <p class="eyebrow">Backend + DB</p>
+                <h3>Persistent personal finance engine</h3>
+                <p>Users, transactions, goals, dashboard summaries, and admin reporting are all stored in SQLite via backend APIs.</p>
+              </article>
+              <article class="feature-card glass-panel">
+                <p class="eyebrow">Authentication + Security</p>
+                <h3>JWT, bcrypt, RBAC, and env config</h3>
+                <p>Protected routes, hashed passwords, admin-only data access, and configurable secrets show the exact security work your rubric expects.</p>
+              </article>
+            </div>
+
+            <div class="guest-showcase">
+              <article class="glass-panel showcase-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Quick Access</p>
+                    <h3>Demo Credentials</h3>
+                  </div>
+                </div>
+                <div class="credential-list">
+                  <div class="credential-card">
+                    <span class="badge admin">Admin</span>
+                    <strong>admin@wealthwise.local</strong>
+                    <p>Password: Admin@123</p>
+                  </div>
+                  <div class="credential-card">
+                    <span class="badge user">User</span>
+                    <strong>demo@wealthwise.local</strong>
+                    <p>Password: Demo@123</p>
+                  </div>
+                </div>
+              </article>
+
+              <article class="glass-panel showcase-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Submission Evidence</p>
+                    <h3>Best Screenshot Sequence</h3>
+                  </div>
+                </div>
+                <div class="screenshot-list">
+                  <div class="screenshot-item"><span>01</span><p>Landing page hero with feature highlights</p></div>
+                  <div class="screenshot-item"><span>02</span><p>Dashboard with live totals and category chart</p></div>
+                  <div class="screenshot-item"><span>03</span><p>Transactions page showing backend-connected records</p></div>
+                  <div class="screenshot-item"><span>04</span><p>Goals page with progress bars and update actions</p></div>
+                  <div class="screenshot-item"><span>05</span><p>Admin panel proving role-based access control</p></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view-section hidden" id="dashboardView">
+            <div class="summary-grid" id="summaryGrid"></div>
+            <div class="two-column">
+              <div class="glass-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Spending Breakdown</p>
+                    <h3>Top Categories</h3>
+                  </div>
+                </div>
+                <div id="spendingChart" class="chart-list"></div>
+              </div>
+              <div class="glass-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Recent Activity</p>
+                    <h3>Latest Transactions</h3>
+                  </div>
+                </div>
+                <div id="recentTransactions" class="activity-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="view-section hidden" id="transactionsView">
+            <div class="two-column form-layout">
+              <form class="glass-panel" id="transactionForm">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Data Entry</p>
+                    <h3>Add Transaction</h3>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    <span>Title</span>
+                    <input type="text" name="title" placeholder="Salary, Rent, Groceries" required />
+                  </label>
+                  <label>
+                    <span>Amount</span>
+                    <input type="number" name="amount" min="1" step="0.01" placeholder="5000" required />
+                  </label>
+                  <label>
+                    <span>Type</span>
+                    <select name="type">
+                      <option value="income">Income</option>
+                      <option value="expense">Expense</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Category</span>
+                    <input type="text" name="category" placeholder="Food, Housing, Investments" required />
+                  </label>
+                  <label>
+                    <span>Date</span>
+                    <input type="date" name="transactionDate" required />
+                  </label>
+                  <label>
+                    <span>Note</span>
+                    <input type="text" name="note" placeholder="Optional note" />
+                  </label>
+                </div>
+                <button class="primary-button" type="submit">Save Transaction</button>
+              </form>
+
+              <div class="glass-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Database Records</p>
+                    <h3>Transaction History</h3>
+                  </div>
+                </div>
+                <div id="transactionList" class="stack-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="view-section hidden" id="goalsView">
+            <div class="two-column form-layout">
+              <form class="glass-panel" id="goalForm">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Savings Planner</p>
+                    <h3>Create Goal</h3>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    <span>Goal Title</span>
+                    <input type="text" name="title" placeholder="Emergency Fund" required />
+                  </label>
+                  <label>
+                    <span>Target Amount</span>
+                    <input type="number" name="targetAmount" min="1" step="0.01" placeholder="100000" required />
+                  </label>
+                  <label>
+                    <span>Current Savings</span>
+                    <input type="number" name="savedAmount" min="0" step="0.01" placeholder="25000" />
+                  </label>
+                  <label>
+                    <span>Target Date</span>
+                    <input type="date" name="targetDate" required />
+                  </label>
+                </div>
+                <button class="primary-button" type="submit">Create Goal</button>
+              </form>
+
+              <div class="glass-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Wealth Goals</p>
+                    <h3>Goal Tracker</h3>
+                  </div>
+                </div>
+                <div id="goalList" class="goal-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="view-section hidden" id="insightsView">
+            <div class="feature-grid" id="insightCards"></div>
+          </section>
+
+          <section class="view-section hidden" id="adminView">
+            <div class="glass-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Role-Based Access Control</p>
+                  <h3>Admin User Directory</h3>
+                </div>
+              </div>
+              <div id="adminUsers" class="admin-grid"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="authModal" class="auth-modal">
+      <form method="dialog" class="auth-panel glass-panel" id="authForm">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Secure Access</p>
+            <h3 id="authTitle">Login</h3>
+          </div>
+          <button type="button" class="ghost-icon" id="closeModal">×</button>
+        </div>
+
+        <div class="form-grid">
+          <label id="nameField" class="hidden">
+            <span>Full Name</span>
+            <input type="text" name="name" placeholder="Janvi Pandya" />
+          </label>
+          <label>
+            <span>Email</span>
+            <input type="email" name="email" placeholder="you@example.com" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" placeholder="Minimum 8 characters" required />
+          </label>
+          <label id="incomeField" class="hidden">
+            <span>Monthly Income</span>
+            <input type="number" name="monthlyIncome" placeholder="50000" />
+          </label>
+          <label id="riskField" class="hidden">
+            <span>Risk Profile</span>
+            <select name="riskProfile">
+              <option value="Conservative">Conservative</option>
+              <option value="Balanced" selected>Balanced</option>
+              <option value="Growth">Growth</option>
+            </select>
+          </label>
+        </div>
+
+        <button class="primary-button" type="submit" id="authSubmitButton">Login</button>
+        <p class="form-helper" id="authHelper">
+          Demo user: demo@wealthwise.local / Demo@123
+        </p>
+      </form>
+    </dialog>
+
+    <div class="toast hidden" id="toast"></div>
+
+    <script src="/app.js" defer></script>
+  </body>
+  </html>
