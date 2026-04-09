@@ -4,9 +4,11 @@ import { fileURLToPath } from "node:url";
 import { publicDir, config } from "./config.js";
 import { signToken, verifyToken } from "./auth.js";
 import {
+  connectDatabase,
   createGoal,
   createTransaction,
   createUser,
+  findUserByEmail,
   findUserById,
   getDashboardSummary,
   listGoals,
@@ -18,6 +20,7 @@ import {
 } from "./db.js";
 
 const app = express();
+const asyncHandler = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 app.use(express.json());
 app.use(express.static(publicDir));
@@ -26,7 +29,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", app: "WealthWise" });
 });
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", asyncHandler(async (req, res) => {
   try {
     const { name, email, password, monthlyIncome, riskProfile } = req.body;
 
@@ -51,44 +54,56 @@ app.post("/api/auth/register", async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message || "Unable to register user." });
   }
-});
+}));
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  const normalizedEmail = String(email || "").trim();
 
-  if (!email || !password) {
+  if (!normalizedEmail || !password) {
     return res.status(400).json({ message: "Email and password are required." });
   }
 
-  const user = await validateUserCredentials(String(email).trim(), String(password));
+  const existingUser = await findUserByEmail(normalizedEmail);
+  if (!existingUser) {
+    return res.status(404).json({
+      code: "EMAIL_NOT_REGISTERED",
+      message: "No account found with this email address."
+    });
+  }
+
+  const user = await validateUserCredentials(normalizedEmail, String(password));
   if (!user) {
-    return res.status(401).json({ message: "Invalid email or password." });
+    return res.status(401).json({
+      code: "INVALID_PASSWORD",
+      message: "Incorrect password. Please try again."
+    });
   }
 
   const token = signToken(user);
   res.json({ token, user });
-});
+}));
 
 app.get("/api/auth/me", authenticate, (req, res) => {
   res.json({ user: req.user });
 });
 
-app.get("/api/dashboard/summary", authenticate, (req, res) => {
-  res.json(getDashboardSummary(req.user.id));
-});
+app.get("/api/dashboard/summary", authenticate, asyncHandler(async (req, res) => {
+  res.json(await getDashboardSummary(req.user.id));
+}));
 
-app.get("/api/transactions", authenticate, (req, res) => {
-  res.json({ items: listTransactions(req.user.id) });
-});
+app.get("/api/transactions", authenticate, asyncHandler(async (req, res) => {
+  res.json({ items: await listTransactions(req.user.id) });
+}));
 
-app.post("/api/transactions", authenticate, (req, res) => {
+app.post("/api/transactions", authenticate, asyncHandler(async (req, res) => {
   const { title, amount, type, category, transactionDate, note } = req.body;
 
   if (!title || !amount || !type || !category || !transactionDate) {
     return res.status(400).json({ message: "All transaction fields except note are required." });
   }
 
-  const transaction = createTransaction(req.user.id, {
+  const transaction = await createTransaction(req.user.id, {
     title: String(title).trim(),
     amount: Number(amount),
     type: String(type),
@@ -98,20 +113,20 @@ app.post("/api/transactions", authenticate, (req, res) => {
   });
 
   res.status(201).json({ transaction });
-});
+}));
 
-app.get("/api/goals", authenticate, (req, res) => {
-  res.json({ items: listGoals(req.user.id) });
-});
+app.get("/api/goals", authenticate, asyncHandler(async (req, res) => {
+  res.json({ items: await listGoals(req.user.id) });
+}));
 
-app.post("/api/goals", authenticate, (req, res) => {
+app.post("/api/goals", authenticate, asyncHandler(async (req, res) => {
   const { title, targetAmount, savedAmount, targetDate } = req.body;
 
   if (!title || !targetAmount || !targetDate) {
     return res.status(400).json({ message: "Title, target amount, and target date are required." });
   }
 
-  const goal = createGoal(req.user.id, {
+  const goal = await createGoal(req.user.id, {
     title: String(title).trim(),
     targetAmount: Number(targetAmount),
     savedAmount: Number(savedAmount || 0),
@@ -119,26 +134,26 @@ app.post("/api/goals", authenticate, (req, res) => {
   });
 
   res.status(201).json({ goal });
-});
+}));
 
-app.patch("/api/goals/:goalId", authenticate, (req, res) => {
-  const updatedGoal = updateGoalSavings(req.user.id, req.params.goalId, Number(req.body.savedAmount || 0));
+app.patch("/api/goals/:goalId", authenticate, asyncHandler(async (req, res) => {
+  const updatedGoal = await updateGoalSavings(req.user.id, req.params.goalId, Number(req.body.savedAmount || 0));
   if (!updatedGoal) {
     return res.status(404).json({ message: "Goal not found." });
   }
 
   res.json({ goal: updatedGoal });
-});
+}));
 
-app.get("/api/admin/users", authenticate, authorize("admin"), (_req, res) => {
-  res.json({ items: listUsers() });
-});
+app.get("/api/admin/users", authenticate, authorize("admin"), asyncHandler(async (_req, res) => {
+  res.json({ items: await listUsers() });
+}));
 
 app.get("*", (_req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
 
@@ -148,7 +163,7 @@ function authenticate(req, res, next) {
 
   try {
     const payload = verifyToken(token);
-    const user = findUserById(Number(payload.sub));
+    const user = await findUserById(payload.sub);
 
     if (!user) {
       return res.status(401).json({ message: "User not found." });
@@ -171,6 +186,12 @@ function authorize(...roles) {
   };
 }
 
+app.use((error, _req, res, _next) => {
+  console.error(error);
+  res.status(500).json({ message: "Server error. Check your MongoDB connection and try again." });
+});
+
+await connectDatabase();
 await seedDatabase();
 
 if (process.argv.includes("--seed-only")) {

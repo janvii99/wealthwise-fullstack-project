@@ -1,244 +1,167 @@
-import fs from "node:fs";
-import { DatabaseSync } from "node:sqlite";
+import mongoose from "mongoose";
 import { comparePassword, hashPassword } from "./auth.js";
-import { config, dataDir } from "./config.js";
+import { config } from "./config.js";
 
-const dbPath = `${dataDir}/wealthwise.db`;
+const { Schema, model } = mongoose;
 
-fs.mkdirSync(dataDir, { recursive: true });
-
-export const db = new DatabaseSync(dbPath);
-
-db.exec(`
-  PRAGMA foreign_keys = ON;
-
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('admin', 'user')) DEFAULT 'user',
-    monthly_income REAL NOT NULL DEFAULT 0,
-    risk_profile TEXT NOT NULL DEFAULT 'Balanced',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    amount REAL NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('income', 'expense')),
-    category TEXT NOT NULL,
-    transaction_date TEXT NOT NULL,
-    note TEXT DEFAULT '',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS goals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    target_amount REAL NOT NULL,
-    saved_amount REAL NOT NULL DEFAULT 0,
-    target_date TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-`);
-
-const findUserByEmailStmt = db.prepare(
-  "SELECT id, name, email, role, monthly_income AS monthlyIncome, risk_profile AS riskProfile, password_hash AS passwordHash, created_at AS createdAt FROM users WHERE email = ?"
+const userSchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: true },
+    role: { type: String, enum: ["admin", "user"], default: "user" },
+    monthlyIncome: { type: Number, default: 0 },
+    riskProfile: { type: String, default: "Balanced" }
+  },
+  { timestamps: true }
 );
-const findUserByIdStmt = db.prepare(
-  "SELECT id, name, email, role, monthly_income AS monthlyIncome, risk_profile AS riskProfile, created_at AS createdAt FROM users WHERE id = ?"
+
+const transactionSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    title: { type: String, required: true, trim: true },
+    amount: { type: Number, required: true },
+    type: { type: String, enum: ["income", "expense"], required: true },
+    category: { type: String, required: true, trim: true },
+    transactionDate: { type: String, required: true },
+    note: { type: String, default: "" }
+  },
+  { timestamps: true }
 );
-const createUserStmt = db.prepare(`
-  INSERT INTO users (name, email, password_hash, role, monthly_income, risk_profile)
-  VALUES (?, ?, ?, ?, ?, ?)
-`);
-const listUsersStmt = db.prepare(`
-  SELECT
-    u.id,
-    u.name,
-    u.email,
-    u.role,
-    u.monthly_income AS monthlyIncome,
-    u.risk_profile AS riskProfile,
-    u.created_at AS createdAt,
-    COUNT(t.id) AS transactionCount,
-    COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0) AS totalIncome,
-    COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0) AS totalExpense
-  FROM users u
-  LEFT JOIN transactions t ON t.user_id = u.id
-  GROUP BY u.id
-  ORDER BY u.created_at DESC
-`);
-const createTransactionStmt = db.prepare(`
-  INSERT INTO transactions (user_id, title, amount, type, category, transaction_date, note)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-`);
-const listTransactionsStmt = db.prepare(`
-  SELECT
-    id,
-    title,
-    amount,
-    type,
-    category,
-    transaction_date AS transactionDate,
-    note,
-    created_at AS createdAt
-  FROM transactions
-  WHERE user_id = ?
-  ORDER BY transaction_date DESC, created_at DESC
-`);
-const createGoalStmt = db.prepare(`
-  INSERT INTO goals (user_id, title, target_amount, saved_amount, target_date, status)
-  VALUES (?, ?, ?, ?, ?, ?)
-`);
-const listGoalsStmt = db.prepare(`
-  SELECT
-    id,
-    title,
-    target_amount AS targetAmount,
-    saved_amount AS savedAmount,
-    target_date AS targetDate,
-    status,
-    created_at AS createdAt
-  FROM goals
-  WHERE user_id = ?
-  ORDER BY target_date ASC
-`);
-const updateGoalSavingsStmt = db.prepare(`
-  UPDATE goals
-  SET saved_amount = ?, status = ?
-  WHERE id = ? AND user_id = ?
-`);
-const dashboardTotalsStmt = db.prepare(`
-  SELECT
-    COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS totalIncome,
-    COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS totalExpense
-  FROM transactions
-  WHERE user_id = ?
-`);
-const spendingByCategoryStmt = db.prepare(`
-  SELECT category, ROUND(SUM(amount), 2) AS total
-  FROM transactions
-  WHERE user_id = ? AND type = 'expense'
-  GROUP BY category
-  ORDER BY total DESC
-`);
+
+const goalSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    title: { type: String, required: true, trim: true },
+    targetAmount: { type: Number, required: true },
+    savedAmount: { type: Number, default: 0 },
+    targetDate: { type: String, required: true },
+    status: { type: String, enum: ["active", "completed"], default: "active" }
+  },
+  { timestamps: true }
+);
+
+const User = model("User", userSchema);
+const Transaction = model("Transaction", transactionSchema);
+const Goal = model("Goal", goalSchema);
+
+export async function connectDatabase() {
+  await mongoose.connect(config.mongoUri, {
+    dbName: config.mongoDbName
+  });
+}
 
 export async function seedDatabase() {
-  const admin = findUserByEmailStmt.get(config.adminEmail);
+  await ensureSeedUser({
+    name: config.adminName,
+    email: config.adminEmail,
+    password: config.adminPassword,
+    role: "admin",
+    monthlyIncome: 125000,
+    riskProfile: "Growth"
+  });
 
-  if (!admin) {
-    const passwordHash = await hashPassword(config.adminPassword);
-    const result = createUserStmt.run(
-      config.adminName,
-      config.adminEmail,
+  await ensureSeedUser({
+    name: "Janvi Demo",
+    email: "demo@wealthwise.local",
+    password: "Demo@123",
+    role: "user",
+    monthlyIncome: 68000,
+    riskProfile: "Balanced"
+  });
+}
+
+async function ensureSeedUser({ name, email, password, role, monthlyIncome, riskProfile }) {
+  let user = await User.findOne({ email: email.toLowerCase() });
+
+  if (!user) {
+    const passwordHash = await hashPassword(password);
+    user = await User.create({
+      name,
+      email: email.toLowerCase(),
       passwordHash,
-      "admin",
-      125000,
-      "Growth"
-    );
-
-    const adminId = Number(result.lastInsertRowid);
-    seedUserData(adminId, "admin");
+      role,
+      monthlyIncome,
+      riskProfile
+    });
   }
 
-  const demoEmail = "demo@wealthwise.local";
-  const demo = findUserByEmailStmt.get(demoEmail);
+  const transactionCount = await Transaction.countDocuments({ userId: user._id });
+  const goalCount = await Goal.countDocuments({ userId: user._id });
 
-  if (!demo) {
-    const passwordHash = await hashPassword("Demo@123");
-    const result = createUserStmt.run(
-      "Janvi Demo",
-      demoEmail,
-      passwordHash,
-      "user",
-      68000,
-      "Balanced"
-    );
-
-    const userId = Number(result.lastInsertRowid);
-    seedUserData(userId, "user");
+  if (transactionCount === 0 && goalCount === 0) {
+    await seedUserData(user._id, role);
   }
 }
 
-function seedUserData(userId, variant) {
+async function seedUserData(userId, variant) {
   const baseTransactions =
     variant === "admin"
       ? [
-          ["Salary", 125000, "income", "Salary", "2026-04-01", "Monthly salary credited"],
-          ["Mutual Fund SIP", 15000, "expense", "Investments", "2026-04-02", "Index fund SIP"],
-          ["Rent", 26000, "expense", "Housing", "2026-04-03", "Apartment rental"],
-          ["Groceries", 8200, "expense", "Food", "2026-04-04", "Monthly groceries"],
-          ["Freelance", 18000, "income", "Side Hustle", "2026-04-05", "UI consulting project"],
-          ["Travel Fund", 6000, "expense", "Travel", "2026-04-06", "Summer savings"]
+          { title: "Salary", amount: 125000, type: "income", category: "Salary", transactionDate: "2026-04-01", note: "Monthly salary credited" },
+          { title: "Mutual Fund SIP", amount: 15000, type: "expense", category: "Investments", transactionDate: "2026-04-02", note: "Index fund SIP" },
+          { title: "Rent", amount: 26000, type: "expense", category: "Housing", transactionDate: "2026-04-03", note: "Apartment rental" },
+          { title: "Groceries", amount: 8200, type: "expense", category: "Food", transactionDate: "2026-04-04", note: "Monthly groceries" },
+          { title: "Freelance", amount: 18000, type: "income", category: "Side Hustle", transactionDate: "2026-04-05", note: "UI consulting project" },
+          { title: "Travel Fund", amount: 6000, type: "expense", category: "Travel", transactionDate: "2026-04-06", note: "Summer savings" }
         ]
       : [
-          ["Salary", 68000, "income", "Salary", "2026-04-01", "Monthly salary credited"],
-          ["Rent", 18000, "expense", "Housing", "2026-04-02", "Apartment rent"],
-          ["Groceries", 5200, "expense", "Food", "2026-04-03", "Weekly groceries"],
-          ["Stock Investment", 7000, "expense", "Investments", "2026-04-04", "Blue-chip stocks"],
-          ["Freelance", 9500, "income", "Side Hustle", "2026-04-05", "Landing page redesign"],
-          ["Gym", 2200, "expense", "Health", "2026-04-06", "Quarterly membership"]
+          { title: "Salary", amount: 68000, type: "income", category: "Salary", transactionDate: "2026-04-01", note: "Monthly salary credited" },
+          { title: "Rent", amount: 18000, type: "expense", category: "Housing", transactionDate: "2026-04-02", note: "Apartment rent" },
+          { title: "Groceries", amount: 5200, type: "expense", category: "Food", transactionDate: "2026-04-03", note: "Weekly groceries" },
+          { title: "Stock Investment", amount: 7000, type: "expense", category: "Investments", transactionDate: "2026-04-04", note: "Blue-chip stocks" },
+          { title: "Freelance", amount: 9500, type: "income", category: "Side Hustle", transactionDate: "2026-04-05", note: "Landing page redesign" },
+          { title: "Gym", amount: 2200, type: "expense", category: "Health", transactionDate: "2026-04-06", note: "Quarterly membership" }
         ];
 
   const baseGoals =
     variant === "admin"
       ? [
-          ["Emergency Fund", 300000, 165000, "2026-12-31", "active"],
-          ["Dubai Trip", 120000, 56000, "2026-09-15", "active"],
-          ["New MacBook", 180000, 180000, "2026-06-30", "completed"]
+          { title: "Emergency Fund", targetAmount: 300000, savedAmount: 165000, targetDate: "2026-12-31", status: "active" },
+          { title: "Dubai Trip", targetAmount: 120000, savedAmount: 56000, targetDate: "2026-09-15", status: "active" },
+          { title: "New MacBook", targetAmount: 180000, savedAmount: 180000, targetDate: "2026-06-30", status: "completed" }
         ]
       : [
-          ["Emergency Fund", 180000, 72000, "2026-12-31", "active"],
-          ["MBA Savings", 250000, 90000, "2027-05-31", "active"],
-          ["iPhone Upgrade", 85000, 85000, "2026-08-10", "completed"]
+          { title: "Emergency Fund", targetAmount: 180000, savedAmount: 72000, targetDate: "2026-12-31", status: "active" },
+          { title: "MBA Savings", targetAmount: 250000, savedAmount: 90000, targetDate: "2027-05-31", status: "active" },
+          { title: "iPhone Upgrade", targetAmount: 85000, savedAmount: 85000, targetDate: "2026-08-10", status: "completed" }
         ];
 
-  for (const transaction of baseTransactions) {
-    createTransactionStmt.run(userId, ...transaction);
-  }
-
-  for (const goal of baseGoals) {
-    createGoalStmt.run(userId, ...goal);
-  }
+  await Transaction.insertMany(baseTransactions.map((item) => ({ ...item, userId })));
+  await Goal.insertMany(baseGoals.map((item) => ({ ...item, userId })));
 }
 
 export async function createUser({ name, email, password, monthlyIncome = 0, riskProfile = "Balanced", role = "user" }) {
-  const existingUser = findUserByEmailStmt.get(email.toLowerCase());
+  const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
     throw new Error("A user with this email already exists.");
   }
 
   const passwordHash = await hashPassword(password);
-  const result = createUserStmt.run(
+  const user = await User.create({
     name,
-    email.toLowerCase(),
+    email: email.toLowerCase(),
     passwordHash,
     role,
     monthlyIncome,
     riskProfile
-  );
+  });
 
-  return findUserById(Number(result.lastInsertRowid));
+  return normalizeUser(user);
 }
 
-export function findUserByEmail(email) {
-  return findUserByEmailStmt.get(email.toLowerCase()) || null;
+export async function findUserByEmail(email) {
+  const user = await User.findOne({ email: email.toLowerCase() }).lean();
+  return user ? normalizeUser(user, true) : null;
 }
 
-export function findUserById(id) {
-  return findUserByIdStmt.get(id) || null;
+export async function findUserById(id) {
+  const user = await User.findById(id).lean();
+  return user ? normalizeUser(user) : null;
 }
 
 export async function validateUserCredentials(email, password) {
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
   if (!user) {
     return null;
   }
@@ -252,77 +175,148 @@ export async function validateUserCredentials(email, password) {
   return safeUser;
 }
 
-export function listUsers() {
-  return listUsersStmt.all();
-}
+export async function listUsers() {
+  const users = await User.find().sort({ createdAt: -1 }).lean();
 
-export function createTransaction(userId, payload) {
-  const result = createTransactionStmt.run(
-    userId,
-    payload.title,
-    payload.amount,
-    payload.type,
-    payload.category,
-    payload.transactionDate,
-    payload.note || ""
+  return Promise.all(
+    users.map(async (user) => {
+      const summary = await Transaction.aggregate([
+        { $match: { userId: user._id } },
+        {
+          $group: {
+            _id: null,
+            transactionCount: { $sum: 1 },
+            totalIncome: {
+              $sum: {
+                $cond: [{ $eq: ["$type", "income"] }, "$amount", 0]
+              }
+            },
+            totalExpense: {
+              $sum: {
+                $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0]
+              }
+            }
+          }
+        }
+      ]);
+
+      const totals = summary[0] || { transactionCount: 0, totalIncome: 0, totalExpense: 0 };
+
+      return {
+        ...normalizeUser(user),
+        transactionCount: totals.transactionCount,
+        totalIncome: Number(totals.totalIncome.toFixed(2)),
+        totalExpense: Number(totals.totalExpense.toFixed(2))
+      };
+    })
   );
-
-  return listTransactions(userId).find((transaction) => transaction.id === Number(result.lastInsertRowid));
 }
 
-export function listTransactions(userId) {
-  return listTransactionsStmt.all(userId);
-}
-
-export function createGoal(userId, payload) {
-  const result = createGoalStmt.run(
+export async function createTransaction(userId, payload) {
+  const transaction = await Transaction.create({
     userId,
-    payload.title,
-    payload.targetAmount,
-    payload.savedAmount || 0,
-    payload.targetDate,
-    payload.status || "active"
-  );
+    title: payload.title,
+    amount: payload.amount,
+    type: payload.type,
+    category: payload.category,
+    transactionDate: payload.transactionDate,
+    note: payload.note || ""
+  });
 
-  return listGoals(userId).find((goal) => goal.id === Number(result.lastInsertRowid));
+  return normalizeTransaction(transaction);
 }
 
-export function listGoals(userId) {
-  return listGoalsStmt.all(userId).map((goal) => ({
-    ...goal,
-    progress: Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100))
-  }));
+export async function listTransactions(userId) {
+  const items = await Transaction.find({ userId }).sort({ transactionDate: -1, createdAt: -1 }).lean();
+  return items.map(normalizeTransaction);
 }
 
-export function updateGoalSavings(userId, goalId, savedAmount) {
-  const goal = listGoals(userId).find((item) => item.id === Number(goalId));
+export async function createGoal(userId, payload) {
+  const goal = await Goal.create({
+    userId,
+    title: payload.title,
+    targetAmount: payload.targetAmount,
+    savedAmount: payload.savedAmount || 0,
+    targetDate: payload.targetDate,
+    status: payload.status || "active"
+  });
+
+  return normalizeGoal(goal);
+}
+
+export async function listGoals(userId) {
+  const goals = await Goal.find({ userId }).sort({ targetDate: 1 }).lean();
+  return goals.map(normalizeGoal);
+}
+
+export async function updateGoalSavings(userId, goalId, savedAmount) {
+  const goal = await Goal.findOne({ _id: goalId, userId });
   if (!goal) {
     return null;
   }
 
-  const nextStatus = savedAmount >= goal.targetAmount ? "completed" : "active";
-  updateGoalSavingsStmt.run(savedAmount, nextStatus, goal.id, userId);
-  return listGoals(userId).find((item) => item.id === goal.id);
+  goal.savedAmount = savedAmount;
+  goal.status = savedAmount >= goal.targetAmount ? "completed" : "active";
+  await goal.save();
+
+  return normalizeGoal(goal);
 }
 
-export function getDashboardSummary(userId) {
-  const totals = dashboardTotalsStmt.get(userId);
-  const goals = listGoals(userId);
-  const transactions = listTransactions(userId);
-  const spendingByCategory = spendingByCategoryStmt.all(userId);
+export async function getDashboardSummary(userId) {
+  const [totalsResult] = await Transaction.aggregate([
+    { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+    {
+      $group: {
+        _id: null,
+        totalIncome: {
+          $sum: {
+            $cond: [{ $eq: ["$type", "income"] }, "$amount", 0]
+          }
+        },
+        totalExpense: {
+          $sum: {
+            $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0]
+          }
+        }
+      }
+    }
+  ]);
+
+  const spendingByCategory = await Transaction.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        type: "expense"
+      }
+    },
+    {
+      $group: {
+        _id: "$category",
+        total: { $sum: "$amount" }
+      }
+    },
+    { $sort: { total: -1 } }
+  ]);
+
+  const totals = totalsResult || { totalIncome: 0, totalExpense: 0 };
+  const goals = await listGoals(userId);
+  const transactions = await listTransactions(userId);
   const savings = Number((totals.totalIncome - totals.totalExpense).toFixed(2));
   const savingsRate = totals.totalIncome > 0 ? Math.round((savings / totals.totalIncome) * 100) : 0;
 
   return {
     totals: {
-      income: Number(totals.totalIncome.toFixed(2)),
-      expense: Number(totals.totalExpense.toFixed(2)),
+      income: Number((totals.totalIncome || 0).toFixed(2)),
+      expense: Number((totals.totalExpense || 0).toFixed(2)),
       savings,
       savingsRate
     },
     goals,
     recentTransactions: transactions.slice(0, 5),
-    spendingByCategory,
+    spendingByCategory: spendingByCategory.map((item) => ({
+      category: item._id,
+      total: Number(item.total.toFixed(2))
+    })),
     insights: buildInsights({ totals, goals, spendingByCategory, savingsRate })
   };
 }
@@ -343,7 +337,7 @@ function buildInsights({ totals, goals, spendingByCategory, savingsRate }) {
     {
       title: "Top Spending Category",
       description: topCategory
-        ? `${topCategory.category} is your biggest expense area at INR ${topCategory.total}.`
+        ? `${topCategory._id} is your biggest expense area at INR ${Number(topCategory.total.toFixed(2))}.`
         : "Add transactions to unlock category-level insights."
     },
     {
@@ -358,4 +352,48 @@ function buildInsights({ totals, goals, spendingByCategory, savingsRate }) {
           : "Expenses are exceeding income. Reduce discretionary spending immediately."
     }
   ];
+}
+
+function normalizeUser(user, includePasswordHash = false) {
+  const normalized = {
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    monthlyIncome: user.monthlyIncome,
+    riskProfile: user.riskProfile,
+    createdAt: user.createdAt
+  };
+
+  if (includePasswordHash) {
+    normalized.passwordHash = user.passwordHash;
+  }
+
+  return normalized;
+}
+
+function normalizeTransaction(transaction) {
+  return {
+    id: String(transaction._id),
+    title: transaction.title,
+    amount: transaction.amount,
+    type: transaction.type,
+    category: transaction.category,
+    transactionDate: transaction.transactionDate,
+    note: transaction.note,
+    createdAt: transaction.createdAt
+  };
+}
+
+function normalizeGoal(goal) {
+  return {
+    id: String(goal._id),
+    title: goal.title,
+    targetAmount: goal.targetAmount,
+    savedAmount: goal.savedAmount,
+    targetDate: goal.targetDate,
+    status: goal.status,
+    createdAt: goal.createdAt,
+    progress: Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100))
+  };
 }

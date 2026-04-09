@@ -12,7 +12,7 @@ WealthWise is a secure full-stack personal finance application built for academi
   - Goals
   - Admin console
 - Backend development using Express.js
-- Database connectivity using SQLite
+- Database connectivity using MongoDB
 - JWT-based authentication
 - Password hashing using `bcryptjs`
 - Role-based access control for admin-only APIs and UI
@@ -35,7 +35,7 @@ You can also register a new account from the UI.
 
 - Frontend: HTML, CSS, JavaScript
 - Backend: Node.js, Express
-- Database: SQLite via `node:sqlite`
+- Database: MongoDB with Mongoose
 - Security: JWT, bcrypt
 
 ## Features
@@ -54,6 +54,7 @@ You can also register a new account from the UI.
 - Savings goal tracking
 - Admin dashboard for viewing all users
 - Responsive modern UI suitable for presentation screenshots
+- Seeded demo data for fast evaluation
 
 ## Project Structure
 
@@ -104,6 +105,8 @@ http://localhost:4000
 
 ```env
 PORT=4000
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DB_NAME=wealthwise
 JWT_SECRET=change-this-in-production
 JWT_EXPIRES_IN=7d
 ADMIN_NAME=WealthWise Admin
@@ -138,6 +141,7 @@ ADMIN_PASSWORD=Admin@123
 - JWT tokens are required for protected routes
 - Role-based middleware restricts admin routes
 - Secrets and config are loaded from environment variables
+- MongoDB collections store users, transactions, and goals
 
 ## Suggested Screenshots For Submission
 
@@ -180,13 +184,14 @@ WealthWise - Secure Full-Stack Personal Finance Management System
 
 ## Deployment Recommendation
 
-Render is the easiest option for this structure because the frontend and backend are served from the same Node app.
+Render is still a good hosting option for this structure because the frontend and backend are served from the same Node app, but you should connect it to MongoDB Atlas for the database.
 
 - Build command: `npm install`
 - Start command: `npm start`
 - Add the environment variables from `.env.example`
 - A ready-to-use `render.yaml` file is included
 - Health check path: `/api/health`
+- Use a MongoDB Atlas connection string for `MONGODB_URI`
 
 After deployment, use the generated public URL as your deployed application link.
 
@@ -200,14 +205,17 @@ After deployment, use the generated public URL as your deployed application link
 6. If using manual setup:
    - Build command: `npm install`
    - Start command: `npm start`
-7. Add environment variables:
+7. Create a free MongoDB Atlas cluster and copy the connection string.
+8. Add environment variables:
+   - `MONGODB_URI`
+   - `MONGODB_DB_NAME`
    - `JWT_SECRET`
    - `JWT_EXPIRES_IN`
    - `ADMIN_NAME`
    - `ADMIN_EMAIL`
    - `ADMIN_PASSWORD`
-8. Deploy and wait for the public URL.
-9. Open the deployed URL and test login once before submission.
+9. Deploy and wait for the public URL.
+10. Open the deployed URL and test login once before submission.
 
 ## ZIP Submission Checklist
 
@@ -231,7 +239,8 @@ If your faculty asks you to explain the project, these are the strongest points:
 
 - Frontend is responsive and divided into dashboard, transactions, goals, insights, and admin views
 - Backend is built with Express and exposes protected REST APIs
-- SQLite is used for persistent storage of users, transactions, and goals
+- MongoDB is used for persistent storage of users, transactions, and goals
+- Mongoose schemas define the structure of collections and validations
 - Authentication uses JWT tokens
 - Passwords are hashed before storing with bcrypt
 - Role-based access control prevents normal users from opening admin data
@@ -241,5 +250,5 @@ If your faculty asks you to explain the project, these are the strongest points:
 ## Notes
 
 - The first run seeds admin and demo data automatically.
-- SQLite storage is created inside the `data/` directory.
+- You must have MongoDB running locally or provide a MongoDB Atlas URI in `.env`.
 - The UI is intentionally designed to look stronger than a basic academic CRUD project and give you better screenshot evidence.

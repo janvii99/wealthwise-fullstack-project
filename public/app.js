@@ -9,6 +9,7 @@ const state = {
 };
 
 const elements = {
+  appLayout: document.querySelector(".app-layout"),
   sidebar: document.querySelector("#sidebar"),
   toolbar: document.querySelector("#toolbar"),
   guestView: document.querySelector("#guestView"),
@@ -19,6 +20,8 @@ const elements = {
   authTitle: document.querySelector("#authTitle"),
   authSubmitButton: document.querySelector("#authSubmitButton"),
   authHelper: document.querySelector("#authHelper"),
+  fillDemoUser: document.querySelector("#fillDemoUser"),
+  fillAdminUser: document.querySelector("#fillAdminUser"),
   closeModal: document.querySelector("#closeModal"),
   nameField: document.querySelector("#nameField"),
   incomeField: document.querySelector("#incomeField"),
@@ -72,11 +75,27 @@ document.querySelectorAll(".nav-link").forEach((button) => {
 
 elements.closeModal.addEventListener("click", () => elements.authModal.close());
 elements.logoutButton.addEventListener("click", logout);
+elements.fillDemoUser.addEventListener("click", () => fillLoginCredentials("demo@wealthwise.local", "Demo@123"));
+elements.fillAdminUser.addEventListener("click", () => fillLoginCredentials("admin@wealthwise.local", "Admin@123"));
+
+["name", "email", "password", "monthlyIncome"].forEach((fieldName) => {
+  const field = elements.authForm.elements[fieldName];
+  if (!field) {
+    return;
+  }
+
+  field.addEventListener("input", () => validateAuthFormField(fieldName));
+  field.addEventListener("blur", () => validateAuthFormField(fieldName));
+});
 
 elements.authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const formData = new FormData(elements.authForm);
   const payload = Object.fromEntries(formData.entries());
+
+  if (!validateAuthForm(payload)) {
+    return;
+  }
 
   if (state.authMode === "register") {
     await register(payload);
@@ -134,6 +153,7 @@ async function bootstrap() {
 function openAuthModal(mode) {
   state.authMode = mode;
   const isRegister = mode === "register";
+  clearAuthFormErrors();
   elements.authTitle.textContent = isRegister ? "Create Account" : "Login";
   elements.authSubmitButton.textContent = isRegister ? "Create Account" : "Login";
   elements.authHelper.textContent = isRegister
@@ -142,6 +162,8 @@ function openAuthModal(mode) {
   elements.nameField.classList.toggle("hidden", !isRegister);
   elements.incomeField.classList.toggle("hidden", !isRegister);
   elements.riskField.classList.toggle("hidden", !isRegister);
+  elements.fillDemoUser.classList.toggle("hidden", isRegister);
+  elements.fillAdminUser.classList.toggle("hidden", isRegister);
   elements.authModal.showModal();
 }
 
@@ -154,11 +176,26 @@ async function register(payload) {
 }
 
 async function login(payload) {
-  const response = await api("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
-  handleAuthSuccess(response, "Welcome back to WealthWise.");
+  try {
+    const response = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    handleAuthSuccess(response, "Welcome back to WealthWise.");
+  } catch (error) {
+    if (error.code === "EMAIL_NOT_REGISTERED") {
+      setAuthFieldError("email", "This email is not registered yet.");
+      setAuthFieldError("password", "");
+      return;
+    }
+
+    if (error.code === "INVALID_PASSWORD") {
+      setAuthFieldError("password", "Password is incorrect.");
+      return;
+    }
+
+    throw error;
+  }
 }
 
 function handleAuthSuccess(response, message) {
@@ -189,6 +226,7 @@ function logout() {
 }
 
 function setAuthenticatedLayout(isAuthenticated) {
+  elements.appLayout.classList.toggle("guest-mode", !isAuthenticated);
   elements.sidebar.classList.toggle("hidden", !isAuthenticated);
   elements.toolbar.classList.toggle("hidden", !isAuthenticated);
   elements.guestView.classList.toggle("hidden", isAuthenticated);
@@ -423,7 +461,10 @@ async function api(url, options = {}) {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "Something went wrong." }));
     showToast(error.message || "Request failed.");
-    throw new Error(error.message || "Request failed.");
+    const enrichedError = new Error(error.message || "Request failed.");
+    enrichedError.code = error.code;
+    enrichedError.status = response.status;
+    throw enrichedError;
   }
 
   return response.json();
@@ -463,6 +504,104 @@ function showToast(message) {
   toastTimeout = setTimeout(() => {
     elements.toast.classList.add("hidden");
   }, 2600);
+}
+
+function fillLoginCredentials(email, password) {
+  state.authMode = "login";
+  clearAuthFormErrors();
+  elements.authTitle.textContent = "Login";
+  elements.authSubmitButton.textContent = "Login";
+  elements.authHelper.textContent = "Ready to login with seeded credentials.";
+  elements.nameField.classList.add("hidden");
+  elements.incomeField.classList.add("hidden");
+  elements.riskField.classList.add("hidden");
+  elements.fillDemoUser.classList.remove("hidden");
+  elements.fillAdminUser.classList.remove("hidden");
+  elements.authForm.elements.email.value = email;
+  elements.authForm.elements.password.value = password;
+}
+
+function validateAuthForm(payload) {
+  const checks = [
+    validateAuthFormField("email", payload.email),
+    validateAuthFormField("password", payload.password)
+  ];
+
+  if (state.authMode === "register") {
+    checks.push(validateAuthFormField("name", payload.name));
+    checks.push(validateAuthFormField("monthlyIncome", payload.monthlyIncome));
+  }
+
+  return checks.every(Boolean);
+}
+
+function validateAuthFormField(fieldName, explicitValue) {
+  const field = elements.authForm.elements[fieldName];
+  if (!field) {
+    return true;
+  }
+
+  const value = explicitValue ?? field.value;
+  let message = "";
+
+  if (fieldName === "name" && state.authMode === "register") {
+    if (!String(value || "").trim()) {
+      message = "Please enter your full name.";
+    } else if (String(value).trim().length < 3) {
+      message = "Name should be at least 3 characters.";
+    }
+  }
+
+  if (fieldName === "email") {
+    if (!String(value || "").trim()) {
+      message = "Please enter your email address.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim())) {
+      message = "Enter a valid email address.";
+    }
+  }
+
+  if (fieldName === "password") {
+    if (!String(value || "").trim()) {
+      message = "Please enter your password.";
+    } else if (String(value).length < 8) {
+      message = "Password must be at least 8 characters.";
+    } else if (state.authMode === "register" && !/[A-Z]/.test(String(value))) {
+      message = "Password should include at least one uppercase letter.";
+    } else if (state.authMode === "register" && !/[0-9]/.test(String(value))) {
+      message = "Password should include at least one number.";
+    }
+  }
+
+  if (fieldName === "monthlyIncome" && state.authMode === "register" && String(value || "").trim()) {
+    if (Number(value) < 0) {
+      message = "Monthly income cannot be negative.";
+    }
+  }
+
+  setAuthFieldError(fieldName, message);
+  return !message;
+}
+
+function setAuthFieldError(fieldName, message) {
+  const field = elements.authForm.elements[fieldName];
+  const errorNode = elements.authForm.querySelector(`[data-error-for="${fieldName}"]`);
+
+  if (!field || !errorNode) {
+    return;
+  }
+
+  errorNode.textContent = message;
+  field.classList.toggle("invalid-field", Boolean(message));
+}
+
+function clearAuthFormErrors() {
+  elements.authForm.querySelectorAll(".field-error").forEach((node) => {
+    node.textContent = "";
+  });
+
+  elements.authForm.querySelectorAll(".invalid-field").forEach((field) => {
+    field.classList.remove("invalid-field");
+  });
 }
 
 bootstrap();

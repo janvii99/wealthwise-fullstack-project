@@ -49,6 +49,12 @@ select {
   font: inherit;
 }
 
+input.invalid-field,
+select.invalid-field {
+  border-color: rgba(255, 122, 138, 0.95);
+  box-shadow: 0 0 0 3px rgba(255, 122, 138, 0.14);
+}
+
 button {
   cursor: pointer;
   border: none;
@@ -303,6 +309,10 @@ button {
   margin-top: 30px;
 }
 
+.app-layout.guest-mode {
+  grid-template-columns: 1fr;
+}
+
 .sidebar,
 .toolbar,
 .feature-card,
@@ -484,6 +494,13 @@ label span {
   font-size: 0.9rem;
 }
 
+.field-error {
+  min-height: 1em;
+  color: var(--danger);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 input,
 select {
   padding: 14px 16px;
@@ -556,26 +573,6 @@ input::placeholder {
   margin-top: 10px;
 }
 
-.screenshot-item {
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  align-items: center;
-  gap: 14px;
-}
-
-.screenshot-item span {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, rgba(118, 228, 179, 0.24), rgba(248, 198, 96, 0.3));
-  color: var(--text);
-}
-
 .admin-grid {
   grid-template-columns: repeat(2, 1fr);
 }
@@ -618,6 +615,17 @@ input::placeholder {
 .form-helper {
   color: var(--muted);
   margin: 16px 0 0;
+}
+
+.quick-login-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.quick-login-button {
+  flex: 1 1 180px;
 }
 
 .toast {

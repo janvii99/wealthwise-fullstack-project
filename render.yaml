@@ -9,6 +9,8 @@ services:
     envVars:
       - key: PORT
         value: 4000
+      - key: MONGODB_DB_NAME
+        value: wealthwise
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: ADMIN_NAME
@@ -19,3 +21,5 @@ services:
         value: Admin@123
       - key: JWT_SECRET
         generateValue: true
+      - key: MONGODB_URI
+        sync: false

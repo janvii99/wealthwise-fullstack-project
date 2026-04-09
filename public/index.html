@@ -165,22 +165,6 @@
                   </div>
                 </div>
               </article>
-
-              <article class="glass-panel showcase-panel">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">Submission Evidence</p>
-                    <h3>Best Screenshot Sequence</h3>
-                  </div>
-                </div>
-                <div class="screenshot-list">
-                  <div class="screenshot-item"><span>01</span><p>Landing page hero with feature highlights</p></div>
-                  <div class="screenshot-item"><span>02</span><p>Dashboard with live totals and category chart</p></div>
-                  <div class="screenshot-item"><span>03</span><p>Transactions page showing backend-connected records</p></div>
-                  <div class="screenshot-item"><span>04</span><p>Goals page with progress bars and update actions</p></div>
-                  <div class="screenshot-item"><span>05</span><p>Admin panel proving role-based access control</p></div>
-                </div>
-              </article>
             </div>
           </section>
 
@@ -323,7 +307,7 @@
     </div>
 
     <dialog id="authModal" class="auth-modal">
-      <form method="dialog" class="auth-panel glass-panel" id="authForm">
+      <form class="auth-panel glass-panel" id="authForm">
         <div class="panel-heading">
           <div>
             <p class="eyebrow">Secure Access</p>
@@ -336,18 +320,22 @@
           <label id="nameField" class="hidden">
             <span>Full Name</span>
             <input type="text" name="name" placeholder="Janvi Pandya" />
+            <small class="field-error" data-error-for="name"></small>
           </label>
           <label>
             <span>Email</span>
             <input type="email" name="email" placeholder="you@example.com" required />
+            <small class="field-error" data-error-for="email"></small>
           </label>
           <label>
             <span>Password</span>
             <input type="password" name="password" placeholder="Minimum 8 characters" required />
+            <small class="field-error" data-error-for="password"></small>
           </label>
           <label id="incomeField" class="hidden">
             <span>Monthly Income</span>
             <input type="number" name="monthlyIncome" placeholder="50000" />
+            <small class="field-error" data-error-for="monthlyIncome"></small>
           </label>
           <label id="riskField" class="hidden">
             <span>Risk Profile</span>
@@ -363,6 +351,10 @@
         <p class="form-helper" id="authHelper">
           Demo user: demo@wealthwise.local / Demo@123
         </p>
+        <div class="quick-login-row">
+          <button type="button" class="ghost-button quick-login-button" id="fillDemoUser">Use Demo User</button>
+          <button type="button" class="ghost-button quick-login-button" id="fillAdminUser">Use Admin</button>
+        </div>
       </form>
     </dialog>
 
