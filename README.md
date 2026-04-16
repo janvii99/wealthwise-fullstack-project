@@ -233,19 +233,7 @@ Do not include:
 - `.env`
 - personal system files
 
-## Viva / Explanation Points
 
-If your faculty asks you to explain the project, these are the strongest points:
-
-- Frontend is responsive and divided into dashboard, transactions, goals, insights, and admin views
-- Backend is built with Express and exposes protected REST APIs
-- MongoDB is used for persistent storage of users, transactions, and goals
-- Mongoose schemas define the structure of collections and validations
-- Authentication uses JWT tokens
-- Passwords are hashed before storing with bcrypt
-- Role-based access control prevents normal users from opening admin data
-- Environment variables are used for secrets and admin credentials
-- The application is deployable as a full-stack Node service
 
 ## Notes
 
